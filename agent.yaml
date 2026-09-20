@@ -1,0 +1,14 @@
+# publisher-agent 站点配置（指向被依赖的引擎，原 skill 一行不改）
+engine:
+  script: publish.py          # 相对 engine.cwd 或绝对路径
+  cwd: D:/FDE/blog            # 引擎项目根（.juejin.env / _wf 在这里）
+  runner: [uv, run]           # 调用前缀；裸 python 环境改成 [python]
+
+cadence:                      # 全局默认（2026-09-19 用户决策：不做任何节奏限制，风险自担）
+  juejin: {min_gap_h: 0}
+  zhihu:   {min_gap_h: 0}
+
+state_dir: _state             # 相对本文件：pub_state.json / events.jsonl / lock / heartbeat
+tasks:                        # 队列发完要 /DISABLE 的计划任务名（不删，红队裁定）
+  - BlogAgent_hourly          # deploy 命令注册的每小时心跳（唯一常驻任务）
+escalate: false               # v1 默认不唤起 claude -p，只 incident+toast；稳定后开

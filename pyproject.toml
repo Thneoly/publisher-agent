@@ -1,0 +1,14 @@
+[project]
+name = "publisher-agent"
+version = "0.1.0"
+description = "掘金+知乎双平台定时发布 Agent：排期执行、审核监控、故障响应（本地核心，Tauri 壳留作 v2）"
+requires-python = ">=3.10"
+dependencies = [
+    "pillow>=12.3.0",
+    "playwright>=1.63.0",
+    "pyyaml>=6",
+    "websockets>=13",
+]
+
+[project.scripts]
+blogagent = "publisher_agent.driver:main"

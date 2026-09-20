@@ -1,0 +1,7 @@
+__pycache__/
+.venv/
+_state/
+*.log
+plan.yaml
+desktop/node_modules/
+desktop/src-tauri/target/

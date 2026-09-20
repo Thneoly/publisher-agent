@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>publisher-agent 工作台</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>publisher-agent <span class="ver">v0.3</span></h1>
+    <nav>
+      <button class="tab active" data-tab="source">① 内容源</button>
+      <button class="tab" data-tab="plan">② 编排</button>
+      <button class="tab" data-tab="log">③ 日志</button>
+    </nav>
+    <div class="actions">
+      <button id="btn-doctor">自检</button>
+      <button id="btn-login" class="warn">扫码登录</button>
+      <button id="btn-tick" class="danger">立即执行</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ① 内容源 -->
+    <section id="tab-source" class="panel active">
+      <div class="row">
+        <button id="btn-folder">选择文件夹…</button>
+        <button id="btn-file">选择文件…</button>
+        <button id="btn-clear-found">清空列表</button>
+        <span class="sub" id="source-path">未选择（可多次选不同文件夹，结果累积）</span>
+      </div>
+      <div class="scrollarea">
+        <table id="found">
+          <thead><tr><th><input type="checkbox" id="sel-all" title="全选/全不选"></th><th>文件</th><th>文件夹=专栏</th><th>掘金标题</th><th>字数</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button id="btn-to-plan" class="primary">加入编排（选中项）→</button>
+        <span class="sub">勾选要排期的文章</span>
+      </div>
+    </section>
+
+    <!-- ② 编排（仅掘金——原生 Rust 核心；标签/分类/摘要写回文件） -->
+    <section id="tab-plan" class="panel">
+      <div class="row">
+        <nav class="viewtoggle">
+          <button class="vt active" data-view="ui">UI 表格</button>
+          <button class="vt" data-view="code">Code（YAML）</button>
+        </nav>
+        <span class="sub">编排结果即 plan.yaml（APPDATA），两种视图同一份数据</span>
+      </div>
+
+      <div id="view-ui">
+        <div class="row template">
+          <label>批量模板：</label>
+          <input type="datetime-local" id="tpl-start" />
+          <label>起，每</label>
+          <select id="tpl-mode">
+            <option value="daily">天</option>
+            <option value="weekly">周</option>
+          </select>
+          <input type="number" id="tpl-n" value="1" min="1" max="7" style="width:52px" />
+          <label>篇（每周篇数均匀分布；同日多篇时间由你手动指定）</label>
+          <input type="time" id="tpl-daily" value="09:15" />
+          <button id="btn-apply-tpl">套用到全部</button>
+        </div>
+        <div class="scrollarea">
+          <table id="schedule">
+            <thead><tr><th><input type="checkbox" id="sel-plan" title="全选待发行"></th><th>文章</th><th>掘金标题</th><th>标签</th><th>专栏</th><th>掘金 at</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="view-code" style="display:none">
+        <div class="row">
+          <button id="btn-copy-yaml">复制 YAML</button>
+          <button id="btn-refresh-yaml">刷新</button>
+          <span class="sub" id="yaml-path"></span>
+        </div>
+        <div class="scrollarea"><pre id="plan-yaml">（尚无计划）</pre></div>
+      </div>
+
+      <div class="row">
+        <button id="btn-save-plan" class="primary">生成发布计划</button>
+        <button id="btn-deploy">部署每小时心跳</button>
+        <button id="btn-undeploy" class="warn">停止心跳</button>
+        <button id="btn-dry">干跑验证</button>
+        <button id="btn-publish-sel" class="danger">立即发布选中</button>
+      </div>
+    </section>
+
+    <!-- 字段编辑弹窗（分类/摘要） -->
+    <dialog id="field-dialog">
+      <h3 id="fd-title">编辑</h3>
+      <label class="fd-label">分类<select id="fd-category"></select></label>
+      <label class="fd-label">摘要（50~100 字，掘金硬限制）<textarea id="fd-desc" rows="3"></textarea></label>
+      <div class="row" style="justify-content:flex-end">
+        <button id="fd-cancel">取消</button>
+        <button id="fd-save" class="primary">写回文件</button>
+      </div>
+    </dialog>
+
+    <!-- ③ 日志 -->
+    <section id="tab-log" class="panel">
+      <div class="row">
+        <input type="search" id="log-filter" placeholder="筛选：slug / 事件类型 / 平台…" />
+        <span class="sub" id="log-meta"></span>
+      </div>
+      <div class="scrollarea"><ul id="events"></ul></div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="hb-state" class="ft-item"></span>
+    <pre id="plan-output" class="statusline"
+         title="点击展开完整输出">就绪（知乎已剥离：走原 publish.py zhihu 通道）</pre>
+    <span class="ft-item ver-ft">publisher-agent v0.3 · rust-native</span>
+  </footer>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

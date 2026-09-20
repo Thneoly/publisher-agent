@@ -1,0 +1,24 @@
+[package]
+name = "publisher-agent-desktop"
+version = "0.1.0"
+description = "publisher-agent 桌面壳：看板 / 触发 tick / 干跑 / 托盘"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", features = ["blocking", "json", "native-tls"], default-features = false }
+serde_yaml = "0.9"
+sha2 = "0.10"
+chrono = "0.4"
+regex = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+[profile.release]
+lto = true
+strip = true

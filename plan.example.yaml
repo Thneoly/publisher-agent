@@ -1,0 +1,13 @@
+# 发布计划（工作台「编排」页生成；v0.4 仅掘金——纯 API 零浏览器）
+# 知乎已剥离：临时走原 publish.py zhihu 通道（宿主 CDP，人工触发）
+cadence:
+  juejin: {min_gap_h: 1}      # per_day 可选（缺省=不设每日上限）
+
+queue:
+  - id: bian9
+    file: D:/your/posts/文章A.md
+    juejin: {at: "2026-09-19 09:15"}   # 每篇×每平台绝对时间；缺省=按队列顺序随时可发
+
+  - id: article-b
+    file: D:/your/posts/文章B.md
+    juejin: {}

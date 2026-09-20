@@ -1,0 +1,12 @@
+# 进阶示例：掘金发布前人工门禁（select 之后、publish 之前暂停等批准）
+# 用法：uv run python -m publisher_agent.driver run reviewed [--dry]
+# 批准：driver gate approve pre-publish（唯一等待中时 id 可省）
+# 门禁是 state 层事实：等待期间该篇在所有流水线（含 default/schtasks）都不可选。
+name: reviewed
+steps:
+  - reconcile: {daily: true, on-fail: continue}
+  - poll: {}
+  - select: {platform: juejin}
+  - gate: {id: pre-publish, platform: juejin, timeout_h: 24}
+  - publish: {platform: juejin}
+  - disable-tasks: {when: queue_done}
