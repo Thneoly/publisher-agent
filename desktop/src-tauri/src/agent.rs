@@ -770,7 +770,8 @@ fn upload_cover_via_plugin(draft_id: &str, md_path: &str) -> Option<String> {
 
 /// Windows toast（与 Python 版同款 PowerShell 方案）
 pub fn toast(title: &str, body: &str) -> Result<(), String> {
-    let esc = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    // 换行必须剥：PS here-string 只在行首 '@ 终止，多行文本可能提前截断脚本（检视 minor）
+    let esc = |s: &str| s.replace(['\n', '\r'], " ").replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
     let xml = format!("<toast><visual><binding template='ToastGeneric'><text>{}</text><text>{}</text></binding></visual></toast>",
                       esc(title), esc(body));
     let ps = format!(r#"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null

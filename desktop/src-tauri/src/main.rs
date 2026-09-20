@@ -256,22 +256,29 @@ fn native_set_field(file: String, key: String, value: String) -> Result<String, 
     Ok(format!("✓ {key} 已写回 {}", p.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_default()))
 }
 
-/// 立即发布指定条目（可多篇，跳过排期时间，保留防重发护栏）
+/// 立即发布指定条目（可多篇，跳过排期时间，保留防重发护栏）——异步不冻 UI
 #[tauri::command]
-fn native_publish_now(slugs: Vec<String>) -> Result<String, String> {
-    agent::Agent::load().map_err(|e| e.0)?.publish_now(slugs).map_err(|e| e.0)
+async fn native_publish_now(slugs: Vec<String>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        agent::Agent::load().map_err(|e| e.0)?.publish_now(slugs).map_err(|e| e.0)
+    }).await.map_err(|e| e.to_string())?
 }
 
-/// 原生 tick（R3）：Rust driver 核心跑默认流水线，dry=干跑
+/// 原生 tick（R3）：Rust driver 核心跑默认流水线，dry=干跑。
+/// spawn_blocking：分钟级发布不再冻结 UI 主线程（检视 minor）
 #[tauri::command]
-fn native_tick(dry: bool) -> Result<String, String> {
-    agent::Agent::load().map_err(|e| e.0)?.tick(dry).map_err(|e| e.0)
+async fn native_tick(dry: bool) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        agent::Agent::load().map_err(|e| e.0)?.tick(dry).map_err(|e| e.0)
+    }).await.map_err(|e| e.to_string())?
 }
 
 /// 原生自检（App 自包含体系：凭据/计划/心跳；不再依赖 Python 引擎在场）
 #[tauri::command]
-fn native_doctor() -> Result<String, String> {
-    agent::Agent::load().map_err(|e| e.0)?.doctor().map_err(|e| e.0)
+async fn native_doctor() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        agent::Agent::load().map_err(|e| e.0)?.doctor().map_err(|e| e.0)
+    }).await.map_err(|e| e.to_string())?
 }
 
 /// 原生 status --json（R3）

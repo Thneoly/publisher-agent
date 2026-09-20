@@ -80,6 +80,12 @@ $("#btn-to-plan").onclick = () => {
   if (n) $$(".tab")[1].click();
 };
 
+const planSel = new Set();   // 跨重渲染保留的勾选（检视 minor）
+function syncSelHeader() {
+  const boxes = $$("#schedule .row-sel:not(:disabled)");
+  $("#sel-plan").checked = boxes.length > 0 && boxes.every(b => b.checked);
+}
+
 /* ---------------- ② 编排（仅掘金） ---------------- */
 function renderSchedule() {
   const tb = $("#schedule tbody");
@@ -88,7 +94,7 @@ function renderSchedule() {
     const st = s.status ? `<span class="badge-st ${s.status}">${s.status}</span>` : "";
     const esc = (x) => String(x || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
     tb.innerHTML += `<tr>
-      <td><input type="checkbox" class="row-sel" data-i="${i}" ${s.status && !["pending"].includes(s.status) ? "disabled title=\"已完结/处理中\"" : ""}></td>
+      <td><input type="checkbox" class="row-sel" data-slug="${esc(s.id)}" ${s.status && !["pending"].includes(s.status) ? "disabled title=\"已完结/处理中\"" : ""} ${planSel.has(s.id) ? "checked" : ""}></td>
       <td title="${esc(s.file)}">${esc(s.name)} ${st}</td>
       <td><input type="text" class="cell-title" value="${esc(s.title_juejin)}" data-i="${i}"
                  placeholder="（取文件 frontmatter 标题）" title="改后写回 md 的 title_juejin"></td>
@@ -160,12 +166,21 @@ function renderSchedule() {
   });
   $$("#schedule .cfg").forEach(b => b.onclick = () => openFieldDialog(+b.dataset.i));
   $("#sel-plan").onchange = (e) => {
-    $$("#schedule .row-sel:not(:disabled)").forEach(cb => cb.checked = e.target.checked);
+    $$("#schedule .row-sel:not(:disabled)").forEach(cb => {
+      cb.checked = e.target.checked;
+      if (e.target.checked) planSel.add(cb.dataset.slug); else planSel.delete(cb.dataset.slug);
+    });
   };
+  $$("#schedule .row-sel").forEach(cb => cb.onchange = () => {
+    if (cb.checked) planSel.add(cb.dataset.slug); else planSel.delete(cb.dataset.slug);
+    syncSelHeader();
+  });
   $$("#schedule .run1").forEach(b => b.onclick = () => publishNow([schedule[+b.dataset.i].id]));
   $$("#schedule .del").forEach(b => b.onclick = () => {
+    planSel.delete(schedule[+b.dataset.i].id);
     schedule.splice(+b.dataset.i, 1); renderSchedule();
   });
+  syncSelHeader();
 }
 
 
@@ -193,7 +208,7 @@ async function publishNow(slugs) {
   refreshLog(); loadPlan();
 }
 $("#btn-publish-sel").onclick = () => {
-  const slugs = $$("#schedule .row-sel:checked").map(cb => schedule[+cb.dataset.i].id);
+  const slugs = $$("#schedule .row-sel:checked").map(cb => cb.dataset.slug);
   if (!slugs.length) { $("#plan-output").textContent = "先勾选要立即发布的行"; return; }
   publishNow(slugs);
 };
