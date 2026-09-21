@@ -350,8 +350,22 @@ fn save_plan(spec: String) -> Result<String, String> {
     fs::rename(&tmp, root.join("plan.yaml")).map_err(|e| format!("原子替换失败：{e}"))?;
     let a = agent::Agent::load().map_err(|e| e.0)?;
     a.event("plan.updated", serde_json::json!({"items": queue.len()}));
-    let _ = agent::toast("📅 发布计划已更新", &format!("{} 条入队", queue.len()));
-    Ok(format!("✓ plan.yaml 已更新（{n} 条，APPDATA）——部署心跳后按时间执行", n = queue.len()))
+    // 新计划写入即自动唤醒被停用的心跳（9-21 事故：队列发完自动停用后，用户补排新计划
+    // 却以为还在自动发——save_plan 必须自愈启用，不能再依赖人记得点部署）
+    let mut woke = false;
+    if agent::heartbeat_task_state() == "disabled" {
+        let r = std::process::Command::new("schtasks")
+            .args(["/Change", "/TN", "BlogAgent_hourly", "/ENABLE"])
+            .creation_flags(0x0800_0000).output();
+        if r.map(|o| o.status.success()).unwrap_or(false) {
+            woke = true;
+            a.event("deploy.auto-woke", json!({"by": "plan.updated"}));
+        }
+    }
+    let _ = agent::toast("📅 发布计划已更新", &format!("{} 条入队{}",
+        queue.len(), if woke { "，心跳已自动恢复" } else { "" }));
+    Ok(format!("✓ plan.yaml 已更新（{n} 条，APPDATA）{wake}",
+        n = queue.len(), wake = if woke { "——检测到心跳停用，已自动恢复" } else { "，部署心跳后按时间执行" }))
 }
 
 /// 命令面即 IPC：白名单子命令 + 透传参数向量（红队承认的 IPC 变更）
