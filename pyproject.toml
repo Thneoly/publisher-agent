@@ -12,3 +12,8 @@ dependencies = [
 
 [project.scripts]
 blogagent = "publisher_agent.driver:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
