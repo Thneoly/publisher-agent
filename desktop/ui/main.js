@@ -62,7 +62,7 @@ function renderFound() {
   }
 }
 
-$("#btn-to-plan").onclick = () => {
+$("#btn-to-plan").onclick = async () => {
   let n = 0;
   $$('#found input[type=checkbox]:checked:not(:disabled)').forEach(cb => {
     const f = found.find(x => x.file === cb.dataset.file);
@@ -76,8 +76,10 @@ $("#btn-to-plan").onclick = () => {
     });
     cb.disabled = true; n++;
   });
+  if (!n) return;
   renderSchedule();
-  if (n) $$(".tab")[1].click();
+  await savePlan();          // 加入即写盘——否则「立即发布」读不到
+  $$(".tab")[1].click();
 };
 
 const planSel = new Set();   // 跨重渲染保留的勾选（检视 minor）
@@ -207,6 +209,7 @@ async function refreshStatusesOnly() {
 async function publishNow(slugs) {
   if (!slugs.length) return;
   if (!confirm(`立即发布 ${slugs.length} 篇？（跳过排期时间；已发布/处理中的会被护栏跳过）`)) return;
+  await savePlan();          // 保险：把当前编排（含新增未保存的）先写盘
   $("#plan-output").textContent = `⏳ 立即发布 ${slugs.length} 篇执行中…`;
   try {
     const out = await invoke("native_publish_now", { slugs });
@@ -312,6 +315,7 @@ async function loadPlan() {
       status: r.status,
     }));
     renderSchedule();
+    renderFound();           // 内容源勾选状态同步（从计划消失的文件要恢复可勾）
   } catch (err) { /* 计划文件缺失等，编排页空表即可 */ }
 }
 

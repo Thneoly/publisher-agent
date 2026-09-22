@@ -494,14 +494,28 @@ impl Agent {
         }
         let tags = crate::juejin::resolve_tags(j, &tag_names, &known, &fb);
 
-        // 专栏匹配（名称去空白模糊 → id）
+        // 专栏匹配：大小写不敏感 + 去空白/连字符/点号/下划线（r2r-jev 要能匹配 R2R × Jev：判断之后的治理）
         let column_id = match &picked.column {
             Some(c) => {
-                let norm = |s: &str| s.chars().filter(|x| !x.is_whitespace()).collect::<String>();
-                j.columns(uid).unwrap_or_default().iter().find(|(_, t)| {
-                    let (a, b) = (norm(t), norm(c));
-                    a == b || a.contains(&b) || b.contains(&a)
-                }).map(|(id, _)| id.clone())
+                let norm = |s: &str| s.to_lowercase()
+                    .chars().filter(|x| !x.is_whitespace() && *x != '-' && *x != '_' && *x != '.')
+                    .collect::<String>();
+                let target = norm(c);
+                let cols = j.columns(uid).unwrap_or_default();
+                let hit = cols.iter().find(|(_, t)| {
+                    let n = norm(t);
+                    n == target || n.contains(&target) || target.contains(&n)
+                });
+                match hit {
+                    Some((id, t)) => {
+                        log.push(format!("[专栏] {} → {}", trunc(c, 20), trunc(t, 20)));
+                        Some(id.clone())
+                    }
+                    None => {
+                        log.push(format!("[专栏] 「{}」未匹配到任何专栏（不挂专栏发布）", trunc(c, 20)));
+                        None
+                    }
+                }
             }
             None => None,
         };
