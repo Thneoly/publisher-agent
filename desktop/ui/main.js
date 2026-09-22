@@ -176,9 +176,16 @@ function renderSchedule() {
     syncSelHeader();
   });
   $$("#schedule .run1").forEach(b => b.onclick = () => publishNow([schedule[+b.dataset.i].id]));
-  $$("#schedule .del").forEach(b => b.onclick = () => {
-    planSel.delete(schedule[+b.dataset.i].id);
-    schedule.splice(+b.dataset.i, 1); renderSchedule();
+  $$("#schedule .del").forEach(b => b.onclick = async () => {
+    const i = +b.dataset.i;
+    const it = schedule[i];
+    if (!confirm(`从计划中删除「${it.name}」？
+（只移出排期，不删文章文件；立即写盘生效）`)) return;
+    planSel.delete(it.id);
+    schedule.splice(i, 1);
+    renderSchedule();
+    const ok = await savePlan();
+    if (ok) $("#plan-output").textContent = `✓ 已删除 ${it.id} 并写盘（${schedule.length} 条在队）` + ($("#plan-output").textContent.includes("自动恢复") ? "，心跳已自动恢复" : "");
   });
   syncSelHeader();
 }
@@ -333,8 +340,8 @@ const fmtDT = (d) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
-$("#btn-save-plan").onclick = async () => {
-  if (!schedule.length) { $("#plan-output").textContent = "编排列表为空"; return; }
+async function savePlan() {
+  if (!schedule.length) { $("#plan-output").textContent = "编排列表为空（如需清空计划请删除全部条目后生成）"; return false; }
   const spec = {
     cadence: { juejin: { min_gap_h: 0 } },
     queue: schedule.map(s => ({
@@ -346,8 +353,10 @@ $("#btn-save-plan").onclick = async () => {
   $("#plan-output").textContent = "校验并写入中…";
   try {
     $("#plan-output").textContent = await invoke("save_plan", { spec: JSON.stringify(spec) });
-  } catch (err) { $("#plan-output").textContent = `✗ ${err}`; }
-};
+    return true;
+  } catch (err) { $("#plan-output").textContent = `✗ ${err}`; return false; }
+}
+$("#btn-save-plan").onclick = savePlan;
 
 $("#btn-deploy").onclick = async () => {
   $("#plan-output").textContent = "注册原生心跳（exe --tick，纯 Rust 无 Python）…";
