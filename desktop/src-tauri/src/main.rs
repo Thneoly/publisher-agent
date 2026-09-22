@@ -216,6 +216,22 @@ fn walk_files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     out
 }
 
+/// 重置条目状态到 pending（清平台记录从零开始）——发布被删/驳回后想重发用
+#[tauri::command]
+fn native_reset_status(slugs: Vec<String>) -> Result<String, String> {
+    let mut a = agent::Agent::load().map_err(|e| e.0)?;
+    let mut done = vec![];
+    for slug in slugs {
+        let st = a.entry_status_pub(&slug);
+        if st == "pending" { continue; }
+        a.reset_entry(&slug);
+        done.push(slug);
+    }
+    a.save().map_err(|e| e.0)?;
+    a.event("status.reset", json!({"slugs": done}));
+    Ok(format!("✓ 已重置 {} 条到 pending：{}", done.len(), done.join("、")))
+}
+
 /// 停用心跳（原生，替代 Python undeploy 路由）
 #[tauri::command]
 fn native_undeploy() -> Result<String, String> {

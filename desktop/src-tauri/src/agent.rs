@@ -285,6 +285,15 @@ impl Agent {
         Ok(out)
     }
 
+    pub fn entry_status_pub(&self, slug: &str) -> String {
+        self.entry_status(slug)
+    }
+
+    /// 重置条目到 pending（清平台记录——被删文章的旧 id/冻结标题一并清除）
+    pub fn reset_entry(&mut self, slug: &str) {
+        self.state["entries"][slug] = json!({"status": "pending"});
+    }
+
     fn entry_status(&self, slug: &str) -> String {
         self.state["entries"][slug]["status"].as_str().unwrap_or("pending").to_string()
     }
