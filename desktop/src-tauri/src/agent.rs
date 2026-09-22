@@ -343,6 +343,10 @@ impl Agent {
         let j = Juejin::load().map_err(Err2::from)?;
         let (uid, _name) = j.whoami().map_err(Err2::from)?;
 
+        // Cookie 恢复后自愈 held
+        let healed = self.heal_held();
+        if healed > 0 { log.push(format!("[自愈] {healed} 条 held → pending")); }
+
         // ① 对账回填 + 去重表
         let arts = j.recent_articles(&uid).map_err(Err2::from)?;
         let titles: std::collections::HashSet<String> = arts.iter().map(|a| a.0.clone()).collect();
@@ -534,6 +538,18 @@ impl Agent {
                     "published_ts": now_ts(), "title": &title, "sha": Self::fingerprint(p),
                     "article_id": &aid});
                 self.set_entry(&picked.id, "in_review");
+                // 专栏挂载验证：发布成功 ≠ 专栏挂上（匹配可能静默失败）
+                if let Some(want) = &picked.column {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                    if let Ok(det) = j.article_detail(&aid) {
+                        let got_col = det["article_info"]["column_ids"].as_array()
+                            .and_then(|a| a.first()).and_then(|v| v.as_str()).unwrap_or("");
+                        if got_col.is_empty() {
+                            log.push(format!("[专栏] ⚠ 「{}」未挂上", trunc(want, 16)));
+                            self.event("column.miss", json!({"slug": &picked.id, "article_id": &aid}));
+                        }
+                    }
+                }
                 self.event("publish.ok", json!({"slug": &picked.id, "platform": "juejin",
                     "article_id": &aid, "run_id": run_id, "engine": "rust"}));
                 log.push(format!("[发布] ✓ https://juejin.cn/post/{aid}（审核中）"));
@@ -636,6 +652,22 @@ impl Agent {
         }
     }
 
+    /// Cookie 恢复后自愈：held → pending（401 导致的 held 是瞬态，凭证恢复即放行）
+    pub fn heal_held(&mut self) -> usize {
+        let to_heal: Vec<String> = self.state["entries"].as_object()
+            .map(|m| m.iter().filter(|(_, v)| {
+                v["status"] == json!("held")
+                    && v["platforms"]["juejin"]["kind"].as_str() == Some("COOKIE_EXPIRED")
+            }).map(|(k, _)| k.clone()).collect())
+            .unwrap_or_default();
+        for slug in &to_heal {
+            self.state["entries"][slug]["status"] = json!("pending");
+            self.event("held.auto-healed", json!({"slug": slug}));
+        }
+        if !to_heal.is_empty() { let _ = self.save(); }
+        to_heal.len()
+    }
+
     /// 显示用标题：文件在→frontmatter 的 title_juejin；文件没了→state 冻结标题兜底
     fn title_of(&self, it: &PlanItem, e: &Value) -> String {
         let p = Path::new(&it.file);
@@ -669,7 +701,11 @@ impl Agent {
         let mut lines = vec![];
         let mut ok = true;
         match Juejin::load().map_err(Err2::from).and_then(|j| j.whoami().map_err(Err2::from)) {
-            Ok((_uid, name)) => lines.push(format!("掘金登录态：✓ 有效（{name}）")),
+            Ok((_uid, name)) => {
+                lines.push(format!("掘金登录态：✓ 有效（{name}）"));
+                let healed = self.heal_held();
+                if healed > 0 { lines.push(format!("  ↳ {healed} 条 held 自动恢复")); }
+            }
             Err(e) => { lines.push(format!("掘金登录态：✗ {}（扫码登录）", e.0)); ok = false; }
         }
         let items = self.plan_items()?;

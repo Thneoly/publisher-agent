@@ -116,8 +116,9 @@ function renderSchedule() {
           <button class="cfg" data-i="${i}" title="分类 / 摘要">🛠</button>
           <button class="del" data-i="${i}">✕</button></td></tr>`;
   });
-  $$('#schedule input[data-i]').forEach(inp => inp.onchange = () => {
+  $$('#schedule input[data-i]').forEach(inp => inp.onchange = async () => {
     schedule[+inp.dataset.i].juejin_at = inp.value.replace("T", " ");
+    await savePlan();   // 即时写盘——不再依赖手动点「生成计划」
   });
   $$("#schedule .cell-title").forEach(inp => inp.onchange = async () => {
     const i = +inp.dataset.i;
@@ -163,8 +164,9 @@ function renderSchedule() {
     add.onkeydown = (e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit(); } };
     add.onblur = commit;
   });
-  $$("#schedule .cell-col").forEach(inp => inp.onchange = () => {
+  $$("#schedule .cell-col").forEach(inp => inp.onchange = async () => {
     schedule[+inp.dataset.i].column = inp.value.trim();
+    await savePlan();   // 即时写盘
   });
   $$("#schedule .cfg").forEach(b => b.onclick = () => openFieldDialog(+b.dataset.i));
   $("#sel-plan").onchange = (e) => {

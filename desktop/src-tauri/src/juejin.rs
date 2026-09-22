@@ -315,6 +315,12 @@ impl Juejin {
     }
 
 
+    /// 文章详情（含 column_ids——专栏挂载验证用）
+    pub fn article_detail(&self, article_id: &str) -> Result<Value, ApiError> {
+        self.post("/content_api/v1/article/detail",
+            json!({"article_id": article_id, "forbid_count": true}))
+    }
+
     /// 任意 POST 的公开包装（E2E 删除等管理动作用）
     pub fn post_raw(&self, path: &str, payload: Value) -> Result<Value, ApiError> {
         self.post(path, payload)
