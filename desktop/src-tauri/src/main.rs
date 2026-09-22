@@ -117,22 +117,42 @@ fn native_deploy() -> Result<String, String> {
         .args(["/Query", "/TN", "BlogAgent_hourly", "/FO", "LIST"]).creation_flags(0x0800_0000).output();
     if let Ok(o) = q {
         if o.status.success() {
-            // 已存在但被停用（队列发完会自动停）→ 重新启用而不是只报「已存在」
-            // （2026-09-20 实测事故：报已存在但任务禁用，心跳一天没跑）
-            let text = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
-            let ps = "(schtasks /Query /TN BlogAgent_hourly /FO LIST | Out-String) -match '已禁用|Disabled'";
-            let dis = std::process::Command::new("powershell")
-                .args(["-NoProfile", "-Command", ps]).creation_flags(0x0800_0000).output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "True")
-                .unwrap_or(false);
-            if dis {
+            // ① 校验 Action 指向本 exe——9-22 三轮事故根因：旧注册指向 tick.bat（Python），
+            //    Python driver 读旧仓库状态秒判"队列发完"→每小时自动停用心跳。
+            //    存在≠正确，动作错了必须重建。
+            let xml = std::process::Command::new("schtasks")
+                .args(["/Query", "/TN", "BlogAgent_hourly", "/XML"])
+                .creation_flags(0x0800_0000).output();
+            let exe_ok = xml.map(|o| {
+                let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+                match std::env::current_exe() {
+                    Ok(me) => {
+                        let me_str = me.to_string_lossy().to_string();
+                        t.contains(&me_str)
+                    }
+                    Err(_) => t.contains("publisher-agent-desktop.exe"),
+                }
+            }).unwrap_or(false);
+            if !exe_ok {
                 let _ = std::process::Command::new("schtasks")
-                    .args(["/Change", "/TN", "BlogAgent_hourly", "/ENABLE"])
+                    .args(["/Delete", "/TN", "BlogAgent_hourly", "/F"])
                     .creation_flags(0x0800_0000).output();
-                return Ok("✓ 心跳任务已存在（此前停用）——已重新启用".into());
+                // 落到下方重新注册
+            } else {
+                // ② 已存在但被停用（队列发完会自动停）→ 重新启用
+                let ps = "(schtasks /Query /TN BlogAgent_hourly /FO LIST | Out-String) -match '已禁用|Disabled'";
+                let dis = std::process::Command::new("powershell")
+                    .args(["-NoProfile", "-Command", ps]).creation_flags(0x0800_0000).output()
+                    .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "True")
+                    .unwrap_or(false);
+                if dis {
+                    let _ = std::process::Command::new("schtasks")
+                        .args(["/Change", "/TN", "BlogAgent_hourly", "/ENABLE"])
+                        .creation_flags(0x0800_0000).output();
+                    return Ok("✓ 心跳任务动作正确且此前停用——已重新启用".into());
+                }
+                return Ok("✓ 心跳任务 BlogAgent_hourly 已存在且在跑".into());
             }
-            let _ = text;
-            return Ok("✓ 心跳任务 BlogAgent_hourly 已存在且在跑".into());
         }
     }
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
