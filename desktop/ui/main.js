@@ -473,3 +473,17 @@ refreshLog();
 
 /* 状态栏：单击展开/收起完整输出 */
 $("#plan-output").onclick = () => $("#plan-output").classList.toggle("expanded");
+
+/* ---------------- 重置状态（被删/驳回后重发） ---------------- */
+$("#btn-reset-status").onclick = async () => {
+  const slugs = $$("#schedule .row-sel:checked").map(cb => cb.dataset.slug);
+  const all = slugs.length ? slugs : schedule.map(s => s.id);
+  const nonPending = schedule.filter(s => all.includes(s.id) && s.status && s.status !== "pending");
+  if (!nonPending.length) { $("#plan-output").textContent = "没有需要重置的条目（全部已是 pending）"; return; }
+  if (!confirm(`重置 ${nonPending.length} 条到 pending？\n（清掉旧发布记录，从零开始——发布已删文章仍需注意相似度机审）`)) return;
+  try {
+    const out = await invoke("native_reset_status", { slugs: all });
+    $("#plan-output").textContent = out;
+    loadPlan();
+  } catch (err) { $("#plan-output").textContent = `✗ ${err}`; }
+};
