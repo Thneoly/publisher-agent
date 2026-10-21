@@ -829,19 +829,22 @@ fn upload_cover_via_plugin(draft_id: &str, md_path: &str) -> Option<String> {
 
 /// Windows toast（与 Python 版同款 PowerShell 方案）
 pub fn toast(title: &str, body: &str) -> Result<(), String> {
-    // 换行必须剥：PS here-string 只在行首 '@ 终止，多行文本可能提前截断脚本（检视 minor）
-    let esc = |s: &str| s.replace(['\n', '\r'], " ").replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-    let xml = format!("<toast><visual><binding template='ToastGeneric'><text>{}</text><text>{}</text></binding></visual></toast>",
-                      esc(title), esc(body));
-    let ps = format!(r#"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
-$doc = New-Object Windows.Data.Xml.Dom.XmlDocument
-$doc.LoadXml(@'
-{xml}
-'@)
-$t = New-Object Windows.UI.Notifications.ToastNotification($doc)
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('publisher-agent').Show($t)"#);
+    // WinRT toast 勿用：wpnapps.dll 26100.9711 回归 bug——未打包进程 Show() 100% AV 崩
+    // （2026-10 实测：换注册 AUMID 仍崩；NotifyIcon 气泡走 shell 通知区，验证不崩）
+    // 换行必须剥（单行参数），单引号按 PS 规则加倍转义
+    let esc = |s: &str| s.replace(['\n', '\r'], " ").replace('\'', "''");
+    let ps = format!(r#"
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$n = New-Object System.Windows.Forms.NotifyIcon
+$n.Icon = [System.Drawing.SystemIcons]::Information
+$n.Visible = $true
+$n.ShowBalloonTip(5000, '{t}', '{b}', [System.Windows.Forms.ToolTipIcon]::Info)
+Start-Sleep -Seconds 6
+$n.Dispose()
+"#, t = esc(title), b = esc(body));
     let _ = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-Command", &ps])
+        .args(["-NoProfile", "-STA", "-Command", &ps])
         .creation_flags(0x0800_0000).spawn();
     Ok(())
 }
