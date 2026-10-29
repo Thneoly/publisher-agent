@@ -303,6 +303,16 @@ impl Agent {
         self.state["entries"][slug]["updated"] = json!(chrono::Local::now().format("%Y-%m-%dT%H:%M:%S").to_string());
     }
 
+    /// tags 解析：剥 YAML 数组包裹（`[a, b]` / `"[a, b]"`）后按逗号拆分。
+    /// 带 [] 时直接 split 会拆出 "[a" / "b]"，查标签必失败（发布失败实锤 bug）。
+    pub fn parse_tag_names(raw: &str) -> Vec<String> {
+        let stripped = raw.trim().trim_start_matches(['[', '"', '\'', ' ']).trim_end_matches([']', '"', '\'', ' ']);
+        stripped.split(',')
+            .map(|x| x.trim().trim_matches(['"', '\'']).trim().to_string())
+            .filter(|x| !x.is_empty())
+            .collect()
+    }
+
     /// 轻量 frontmatter 解析（title_juejin/description/tags/category_id）+ 剥 HTML 注释
     pub fn parse_post(path: &Path) -> Result<(HashMap<String, String>, String), Err2> {
         let raw = fs::read_to_string(path).map_err(|e| Err2(format!("{:?} 读不了：{e}", path)))?;
@@ -478,8 +488,7 @@ impl Agent {
         }
         let brief: String = brief_raw.chars().take(100).collect();
         let category = fields.get("category_id").cloned().unwrap_or("6809637773935378440".into());
-        let tag_names: Vec<String> = fields.get("tags").map(|s|
-            s.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect()).unwrap_or_default();
+        let tag_names: Vec<String> = fields.get("tags").map(|s| Agent::parse_tag_names(s)).unwrap_or_default();
 
         let mut known = HashMap::new();
         for (k, v) in [("人工智能", "6809640642101116936"), ("面试", "6809640404791590919"),

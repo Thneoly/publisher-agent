@@ -378,7 +378,7 @@ pub fn resolve_tags(
             }
         }
     }
-    if out.len() == 1 {
+    if out.len() <= 1 {
         if let Some(id) = known.get("人工智能") {
             if !out.contains(id) {
                 out.push(id.clone());

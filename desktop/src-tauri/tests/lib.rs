@@ -41,6 +41,26 @@ fn test_trunc_tail() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// tags 解析测试（带 [] 的 YAML 数组写法曾致发布失败）
+// ═══════════════════════════════════════════════════════════════
+
+#[test]
+fn test_parse_tag_names() {
+    // 普通逗号分隔
+    assert_eq!(Agent::parse_tag_names("AI, 后端"), vec!["AI", "后端"]);
+    // YAML 流式数组（无引号）
+    assert_eq!(Agent::parse_tag_names("[K8s, 云原生]"), vec!["K8s", "云原生"]);
+    // 带引号的数组字符串（parse_post 已剥外层引号后仍可能残留括号）
+    assert_eq!(Agent::parse_tag_names("[\"AI\", '架构']"), vec!["AI", "架构"]);
+    // 单元素带括号——之前直接 split 出 "[AI]" 查标签必失败
+    assert_eq!(Agent::parse_tag_names("[AI]"), vec!["AI"]);
+    // 尾随逗号 / 空串
+    assert_eq!(Agent::parse_tag_names("AI,"), vec!["AI"]);
+    assert!(Agent::parse_tag_names("[]").is_empty());
+    assert!(Agent::parse_tag_names("").is_empty());
+}
+
+// ═══════════════════════════════════════════════════════════════
 // frontmatter 解析测试
 // ═══════════════════════════════════════════════════════════════
 
